@@ -1,0 +1,133 @@
+﻿@page "/students"
+@inject HttpClient httpClient
+
+<h1>Students</h1>
+
+<p>This component demonstrates fetching data from the server.</p>
+
+@if (students == null) {
+<p><em>Loading...</em></p>
+} else {
+<button onclick="@Add" class="btn btn-success">Add</button>
+<table class='table table-hover'>
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>School</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in students) {
+        <tr onclick="@(() => Show(item.StudentId))">
+            <td>@item.StudentId</td>
+            <td>@item.FirstName</td>
+            <td>@item.LastName</td>
+            <td>@item.School</td>
+        </tr>
+        }
+    </tbody>
+</table>
+}
+
+@if (students != null && mode==MODE.Add) // Insert form
+{
+<input placeholder="First Name" bind="@firstName" /><br />
+<input placeholder="Last Name" bind="@lastName" /><br />
+<input placeholder="School" bind="@school" /><br />
+<button onclick="@Insert" class="btn btn-warning">Insert</button>
+}
+
+@if (students != null && mode==MODE.EditDelete) // Update & Delete form
+{
+<input type="hidden" bind="@studentId" /><br />
+<input placeholder="First Name" bind="@firstName" /><br />
+<input placeholder="Last Name" bind="@lastName" /><br />
+<input placeholder="School" bind="@school" /><br />
+<button onclick="@Update" class="btn btn-primary">Update</button>
+<span>&nbsp;&nbsp;&nbsp;&nbsp;</span>
+<button onclick="@Delete" class="btn btn-danger">Delete</button>
+}
+
+@functions {
+    Student[] students;
+    string baseUrl = "https://localhost:44318/";
+    string studentId;
+    string firstName;
+    string lastName;
+    string school;
+
+    private enum MODE { None, Add, EditDelete };
+    MODE mode = MODE.None;
+    Student student;
+
+    protected override async Task OnInitAsync() {
+        await load();
+    }
+
+    protected async Task load() {
+        students = await httpClient.GetJsonAsync<Student[]>($"{baseUrl}api/students");
+    }
+
+    protected async Task Insert() {
+      string endpoint = $"{baseUrl}api/students";
+
+      Student student = new Student() {
+        StudentId = Guid.NewGuid().ToString(),
+        FirstName = firstName,
+        LastName = lastName,
+        School = school
+      };
+
+      await httpClient.SendJsonAsync(HttpMethod.Post, endpoint, student);
+      ClearFields();
+      await load();
+      mode = MODE.None;
+    }
+
+    protected void ClearFields() {
+      studentId = string.Empty;
+      firstName = string.Empty;
+      lastName = string.Empty;
+      school = string.Empty;
+    }
+
+    protected void Add() {
+        ClearFields();
+        mode = MODE.Add;
+    }
+
+    protected async Task Update() {
+      string endpoint = $"{baseUrl}api/students/{studentId}";
+
+      Student student = new Student() {
+        StudentId = studentId,
+        FirstName = firstName,
+        LastName = lastName,
+        School = school
+      };
+
+      await httpClient.SendJsonAsync(HttpMethod.Put, endpoint, student);
+      ClearFields();
+      await load();
+      mode = MODE.None;
+    }
+
+    protected async Task Delete() {
+      string endpoint = $"{baseUrl}api/students/{studentId}";
+      await httpClient.SendJsonAsync(HttpMethod.Delete, endpoint, null);
+      ClearFields();
+      await load();
+      mode = MODE.None;
+    }
+
+    protected async Task Show(string id) {
+        student = await httpClient.GetJsonAsync<Student>($"{baseUrl}api/students/{id}");
+        studentId = student.StudentId;
+        firstName = student.FirstName;
+        lastName = student.LastName;
+        school = student.School;
+        mode = MODE.EditDelete;
+    }
+}
